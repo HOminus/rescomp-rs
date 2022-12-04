@@ -1,0 +1,200 @@
+
+[tasks.rescomp_build]
+script_runner = "@rust"
+script = [
+'''
+fn cargo_build_flags(release: bool) -> Vec<&'static str> {
+    if release {
+        vec!["build", "--release"]
+    } else {
+        vec!["build"]
+    }
+}
+
+use std::io::{Error, ErrorKind};
+fn main() -> Result<(), Error> {
+    let release = std::env::args().collect::<Vec<String>>().contains(&"release".to_string());
+
+    let status = std::process::Command::new("cargo")
+            .args(&cargo_build_flags(release))
+            .status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to build!"));
+    }
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_clean]
+script_runner = "@rust"
+script = [
+'''
+use std::process::Command;
+use std::io::{Error, ErrorKind};
+fn main() -> Result<(), Error> {
+    let status = Command::new("cargo").arg("clean").status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run cargo clean!"));
+    }
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_check]
+script_runner = "@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn check(args: &[&str]) -> Result<(), Error> {
+    let status = Command::new("cargo").arg("check").args(args).status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run rescomp_check!"));
+    }
+    Ok(())
+}
+fn main() -> Result<(), Error> {
+    check(&["--features=lapack", "--tests", "--benches"])?;
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_fmt]
+script_runner = "@rust"
+script = [
+'''
+use std::process::Command;
+use std::io::{Error, ErrorKind};
+fn main() -> Result<(), Error> {
+    let status = Command::new("cargo").arg("fmt").status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run fmt!"))
+    }
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_fmt_check]
+script_runner = "@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn main() -> Result<(), Error> {
+    let status = Command::new("cargo").args(&["fmt", "--", "--check"]).status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run fmt check!"));
+    }
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_clippy]
+script_runner = "@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn clippy(args: &[&str]) -> Result<(), Error> {
+    let status = Command::new("cargo").arg("clippy").args(args).args(&["--", "-D", "warnings"]).status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run clippy!"));
+    }
+    Ok(())
+}
+fn main() -> Result<(), Error> {
+    clippy(&["--features=lapack", "--tests", "--benches"])?;
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_test]
+script_runner = "@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn test() -> Result<(), Error> {
+    let status = Command::new("cargo").arg("test").status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run tests!"));
+    }
+    Ok(())
+}
+fn main() -> Result<(), Error> {
+    test()?;
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_miri_test]
+script_runner = "@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn test() -> Result<(), Error> {
+    let status = Command::new("cargo").args(["+nightly", "miri", "test", "--", "--test-threads", "1"]).status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run rescomp_miri_test."));
+    }
+    Ok(())
+}
+fn main() -> Result<(), Error> {
+    test()?;
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_deny]
+script_runner = "@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn deny(args: &[&str]) -> Result<(), Error> {
+    let status = Command::new("cargo").args(&["deny", "check"]).args(args).status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run cargo deny!"));
+    }
+    Ok(())
+}
+fn main() -> Result<(), Error> {
+    deny(&[])?;
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_valgrind_test]
+script_runner="@rust"
+script = [
+'''
+use std::io::{Error, ErrorKind};
+use std::process::Command;
+fn test() -> Result<(), Error> {
+    let status = Command::new("cargo").args(&["valgrind", "test", "--lib"]).status()?;
+    if !status.success() {
+        return Err(Error::new(ErrorKind::Other, "Failed to run rescomp_valgrind_test"));
+    }
+    Ok(())
+}
+fn main() -> Result<(), Error> {
+    test()?;
+    Ok(())
+}
+'''
+]
+
+[tasks.rescomp_full_check]
+dependencies = ["rescomp_fmt_check", "rescomp_check", "rescomp_clippy", "rescomp_test",
+                "rescomp_valgrind_test", "rescomp_miri_test"] #rescomp_deny
+                
